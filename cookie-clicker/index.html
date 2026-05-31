@@ -8,8 +8,9 @@
 	var SAVESUFFIX='';
 	var App=typeof App==='undefined'?0:App;
 	var PRESETMODS=[];
-	// Clicker embed: this local static copy runs from /cookie-clicker/ on the Clicker site.
-	var LOCAL=(App || !window.location.hostname || window.location.hostname==='localhost' || window.location.hostname==='127.0.0.1' || window.location.pathname.indexOf('/cookie-clicker/')===0 || window.location.hostname==='clicker.uhohman.com');
+	// Clicker embed: this local static copy runs from /cookie-clicker/ locally and /clicker/cookie-clicker/ on GitHub Pages.
+	var CLICKER_EMBED_PATH=window.location.pathname;
+	var LOCAL=(App || !window.location.hostname || window.location.hostname==='localhost' || window.location.hostname==='127.0.0.1' || CLICKER_EMBED_PATH.indexOf('/cookie-clicker/')>=0 || CLICKER_EMBED_PATH.indexOf('/clicker/cookie-clicker/')>=0 || window.location.hostname==='clicker.uhohman.com');
 </script>
 
 <!-- external -->
