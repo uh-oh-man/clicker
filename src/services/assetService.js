@@ -1,4 +1,6 @@
-﻿export const FALLBACK_IMAGE =
+﻿import { withAppBasePath } from "../constants/app.js";
+
+export const FALLBACK_IMAGE =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
@@ -18,8 +20,8 @@
 export const resolveAsset = (source) => {
   if (!source) return FALLBACK_IMAGE;
   if (source.startsWith("http://") || source.startsWith("https://") || source.startsWith("data:")) return source;
-  if (source.startsWith("/")) return source;
-  return `/assets/${source.replace(/^\.\//, "")}`;
+  if (source.startsWith("/")) return withAppBasePath(source);
+  return withAppBasePath(`assets/${source.replace(/^\.\//, "")}`);
 };
 
 export const handleImageFallback = (event) => {

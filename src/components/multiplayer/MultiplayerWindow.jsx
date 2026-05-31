@@ -55,8 +55,9 @@ export function MultiplayerWindow({
               <p>Host must stay online.</p>
               <p>Both browsers must stay open.</p>
               <p>Some networks may block direct WebRTC.</p>
-              <p>Reconnect may require fresh invite/response codes.</p>
-              <p>TURN or signaling can be added later.</p>
+              <p>Invite links are temporary signaling mailboxes.</p>
+              <p>Cloudflare is not used for live gameplay.</p>
+              <p>TURN can be added later for stricter networks.</p>
             </div>
           </div>
 

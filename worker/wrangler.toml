@@ -1,0 +1,13 @@
+name = "clicker-signaling"
+main = "src/index.js"
+compatibility_date = "2026-05-30"
+workers_dev = true
+
+routes = [
+  { pattern = "clicker.uhohman.com/api/invite", zone_name = "uhohman.com" },
+  { pattern = "clicker.uhohman.com/api/invite/*", zone_name = "uhohman.com" }
+]
+
+[[kv_namespaces]]
+binding = "CLICKER_INVITES"
+id = "b910a5ff68064fd9b1fad48b64a580aa"

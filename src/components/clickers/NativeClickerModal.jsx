@@ -1,4 +1,5 @@
 ﻿import { useState } from "react";
+import { EVENT_FRUIT_ASSETS } from "../../constants/data/clickers.js";
 import { handleImageFallback, resolveAsset } from "../../services/assetService.js";
 import {
   canAscend,
@@ -12,12 +13,27 @@ import {
 } from "../../services/clickerEngine.js";
 import { formatNumber } from "../../utils/format.js";
 
+const eventCopy = {
+  lemon: {
+    title: "Lemon Raid",
+    body: "Steals about 25% every 2 seconds. Click to remove.",
+  },
+  orange: {
+    title: "Orange Boost",
+    body: "+30% clicks and passive for 30 seconds. Click to activate.",
+  },
+  eggplant: {
+    title: "Eggplant Lockdown",
+    body: "Stops passive production for 60 seconds. Click to clear early.",
+  },
+};
+
 const pickVisual = (clicker) => {
   const variant = clicker.rareVisualVariants?.find((item) => Math.random() < item.chance);
   return variant ?? { id: "default", name: clicker.shortName, image: clicker.image };
 };
 
-export function NativeClickerModal({ state, clicker, now, modeLabel, permissions, onClose, onFruitClick, onBuyUpgrade, onAscend }) {
+export function NativeClickerModal({ state, clicker, now, modeLabel, permissions, onClose, onFruitClick, onBuyUpgrade, onAscend, onEventClick }) {
   const [visual, setVisual] = useState(() => pickVisual(clicker));
   const progress = state.clickers[clicker.id];
   const unlocked = isClickerUnlocked(state, clicker.id);
@@ -26,8 +42,10 @@ export function NativeClickerModal({ state, clicker, now, modeLabel, permissions
   const orangeMultiplier = getActiveOrangeMultiplier(state, clicker.id, now);
   const activeOrangeBoost = state.events.orangeBoosts?.[clicker.id];
   const orangeRemaining = activeOrangeBoost?.expiresAt > now ? Math.ceil((activeOrangeBoost.expiresAt - now) / 1000) : 0;
+  const activeEvents = state.events.active.filter((event) => event.gameId === clicker.id && event.expiresAt > now);
   const canClick = unlocked && permissions.canClick;
   const canBuy = unlocked && permissions.canBuy;
+  const canEvents = unlocked && permissions.canEvents;
 
   const handleFruitClick = () => {
     if (!canClick) return;
@@ -87,6 +105,51 @@ export function NativeClickerModal({ state, clicker, now, modeLabel, permissions
               </div>
             </div>
           </section>
+
+          {(activeEvents.length > 0 || orangeRemaining > 0) && (
+            <section className="inline-events-panel">
+              <div className="section-title-row">
+                <div>
+                  <p className="eyebrow">Fruit Events</p>
+                  <h3>Active Status</h3>
+                </div>
+                <span>{activeEvents.length} event{activeEvents.length === 1 ? "" : "s"}</span>
+              </div>
+              <div className="inline-event-grid">
+                {orangeRemaining > 0 && (
+                  <article className={`event-card event-card--boost ${activeOrangeBoost?.autoClicked ? "is-auto" : ""}`}>
+                    <img src={resolveAsset(EVENT_FRUIT_ASSETS.orange)} alt="" onError={handleImageFallback} />
+                    <span>
+                      <strong>Orange online</strong>
+                      <small>{clicker.shortName} is boosted by {Math.round((activeOrangeBoost?.boost ?? 0.3) * 100)}%.</small>
+                      <em>{orangeRemaining}s left</em>
+                    </span>
+                  </article>
+                )}
+
+                {activeEvents.map((event) => {
+                  const copy = eventCopy[event.type];
+                  const remaining = Math.max(0, Math.ceil((event.expiresAt - now) / 1000));
+                  return (
+                    <button
+                      className={`event-card event-card--${event.type}`}
+                      type="button"
+                      key={event.id}
+                      onClick={() => onEventClick(clicker.id, event.id)}
+                      disabled={!canEvents}
+                    >
+                      <img src={resolveAsset(EVENT_FRUIT_ASSETS[event.type])} alt="" onError={handleImageFallback} />
+                      <span>
+                        <strong>{copy.title}</strong>
+                        <small>{copy.body}</small>
+                        <em>{remaining}s left</em>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <section className="modal-upgrades">
             <div className="section-title-row">

@@ -4,6 +4,7 @@ export const MESSAGE_TYPES = {
   PING: "ping",
   PONG: "pong",
   STATE: "clicker-state",
+  COOKIE_SAVE_SNAPSHOT: "cookie-clicker-save-snapshot",
   CLICK_REQUEST: "clicker-click-request",
   CLICK_BATCH_REQUEST: "clicker-click-batch-request",
   BUY_UPGRADE_REQUEST: "clicker-buy-upgrade-request",
@@ -24,6 +25,7 @@ export const DEFAULT_PERMISSIONS = {
   canInteractWithFruitEvents: true,
   canUseLiveChat: true,
   canSaveLocalCopy: true,
+  canViewSharedCookieClicker: true,
 };
 
 export const createMessage = (type, payload = {}) => ({
@@ -48,6 +50,18 @@ export const createEventClickRequest = (gameId, eventId) =>
 export const createAscendRequest = (gameId) =>
   createMessage(MESSAGE_TYPES.ASCEND_REQUEST, { gameId, requestId: createId("ascend") });
 
+export const createCookieClickerSnapshotMessage = (snapshot) =>
+  createMessage(MESSAGE_TYPES.COOKIE_SAVE_SNAPSHOT, {
+    revision: snapshot.revision ?? Date.now(),
+    snapshot: {
+      version: snapshot.version ?? 1,
+      savedAt: snapshot.savedAt ?? new Date().toISOString(),
+      saveKey: snapshot.saveKey,
+      saveData: snapshot.saveData,
+      stats: snapshot.stats,
+    },
+  });
+
 export const isGuestActionMessage = (message) =>
   [
     MESSAGE_TYPES.CLICK_REQUEST,
@@ -63,6 +77,7 @@ export const permissionForMessage = (messageType) => {
   if (messageType === MESSAGE_TYPES.EVENT_CLICK_REQUEST) return "canInteractWithFruitEvents";
   if (messageType === MESSAGE_TYPES.ASCEND_REQUEST) return "canAscendFruit";
   if (messageType === MESSAGE_TYPES.CHAT) return "canUseLiveChat";
+  if (messageType === MESSAGE_TYPES.COOKIE_SAVE_SNAPSHOT) return "canViewSharedCookieClicker";
   return "canViewSharedClickers";
 };
 

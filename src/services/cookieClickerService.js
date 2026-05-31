@@ -1,5 +1,8 @@
+﻿import { APP_ID } from "../constants/app.js";
+
 export const COOKIE_CLICKER_SAVE_KEY = "CookieClickerGame";
 export const COOKIE_CLICKER_LANG_KEY = "CookieClickerLang";
+export const COOKIE_CLICKER_SOLO_BACKUP_KEY = `${APP_ID}:cookie-clicker-solo-backup:v1`;
 
 const COOKIE_STORAGE_KEYS = [
   COOKIE_CLICKER_SAVE_KEY,
@@ -78,6 +81,21 @@ export const exportCookieClickerSave = (iframe) => {
   return { ok: false, message: "Cookie Clicker has not produced a save yet. Open it once and let it load first." };
 };
 
+export const createCookieClickerSnapshot = (iframe) => {
+  const result = exportCookieClickerSave(iframe);
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    version: 1,
+    revision: Date.now(),
+    savedAt: new Date().toISOString(),
+    saveKey: result.saveKey,
+    saveData: result.saveData,
+    source: result.source,
+    stats: result.stats,
+  };
+};
+
 export const persistCookieClickerSave = (iframe) => {
   const game = getGame(iframe);
   if (!game?.WriteSave) return false;
@@ -103,6 +121,11 @@ export const restoreCookieClickerSave = (saveData, iframe) => {
   return { ok: true, message: "Cookie Clicker save stored. It will load when Cookie Clicker opens." };
 };
 
+export const restoreCookieClickerSnapshot = (snapshot, iframe) => {
+  if (!snapshot?.saveData) return { ok: false, message: "Cookie Clicker snapshot did not include save data." };
+  return restoreCookieClickerSave(snapshot.saveData, iframe);
+};
+
 export const clearCookieClickerData = (iframe, { clearLanguage = false } = {}) => {
   const game = getGame(iframe);
   let liveReset = false;
@@ -120,6 +143,8 @@ export const clearCookieClickerData = (iframe, { clearLanguage = false } = {}) =
     document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/`;
     document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/cookie-clicker`;
     document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/cookie-clicker/`;
+    document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/clicker/cookie-clicker`;
+    document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/clicker/cookie-clicker/`;
   });
 
   return {
@@ -129,14 +154,50 @@ export const clearCookieClickerData = (iframe, { clearLanguage = false } = {}) =
   };
 };
 
+export const backupCookieClickerSoloSave = (iframe) => {
+  if (window.localStorage?.getItem(COOKIE_CLICKER_SOLO_BACKUP_KEY)) return { ok: true, message: "Cookie Clicker solo backup already exists." };
+  const current = exportCookieClickerSave(iframe);
+  const backup = current.ok
+    ? { appId: APP_ID, version: 1, empty: false, backedUpAt: new Date().toISOString(), saveData: current.saveData, saveKey: current.saveKey }
+    : { appId: APP_ID, version: 1, empty: true, backedUpAt: new Date().toISOString() };
+  window.localStorage?.setItem(COOKIE_CLICKER_SOLO_BACKUP_KEY, JSON.stringify(backup));
+  return { ok: true, message: "Cookie Clicker solo save was backed up before shared snapshot sync." };
+};
+
+export const restoreCookieClickerSoloBackup = (iframe) => {
+  const raw = window.localStorage?.getItem(COOKIE_CLICKER_SOLO_BACKUP_KEY);
+  if (!raw) return { ok: true, restored: false, message: "No Cookie Clicker solo backup was present." };
+
+  let backup;
+  try {
+    backup = JSON.parse(raw);
+  } catch {
+    backup = null;
+  }
+
+  window.localStorage?.removeItem(COOKIE_CLICKER_SOLO_BACKUP_KEY);
+  if (!backup || backup.appId !== APP_ID) return { ok: false, restored: false, message: "Cookie Clicker solo backup was invalid and was discarded." };
+  if (backup.empty) {
+    const clear = clearCookieClickerData(iframe, { clearLanguage: false });
+    return { ...clear, restored: true, message: "Cookie Clicker returned to an empty solo save after shared mode." };
+  }
+
+  const restored = restoreCookieClickerSave(backup.saveData, iframe);
+  return { ...restored, restored: true, message: "Cookie Clicker solo save was restored after shared mode." };
+};
+
 export const getCookieClickerMultiplayerInvestigation = () => ({
   implemented: false,
-  reason:
-    "Cookie Clicker exposes reliable save snapshots and readable live stats, but this pass did not add host-authoritative WebRTC sync because safe syncing needs a new message protocol and conflict policy instead of mutating the iframe directly from guests.",
+  status:
+    "Snapshot-only Cookie Clicker multiplayer groundwork is present, but it is not considered implemented until a two-session host/guest test passes.",
+  design:
+    "The current groundwork lets a host export Game.WriteSave(1), broadcast an encrypted cookie-clicker-save-snapshot message, and let guests restore it into a read-only iframe view while in Shared mode.",
+  syncFrequency: "Every 10 seconds while the host is in Shared mode and a verified guest exists; unchanged save strings are not rebroadcast.",
   filesInspected: [
     "public/cookie-clicker/main.js",
     "public/cookie-clicker/index.html",
     "Cookie-Clicker/main.js",
+    "src/services/cookieClickerService.js",
     "src/services/multiplayer/multiplayerHostService.js",
     "src/services/multiplayer/multiplayerGuestService.js",
     "src/utils/multiplayer/messageSchemas.js",
@@ -145,16 +206,15 @@ export const getCookieClickerMultiplayerInvestigation = () => ({
     "Cookie totals, CPS, cookies per click, and save key can be read from iframe.contentWindow.Game.",
     "Cookie Clicker save snapshots can be exported with Game.WriteSave(1).",
     "Cookie Clicker save snapshots can be restored with Game.LoadSave(save, true) or localStorage key CookieClickerGame.",
+    "Guests are read-only in Shared mode so they cannot directly mutate the host-owned Cookie Clicker state.",
   ],
   doesNotWork: [
-    "No host-authoritative Cookie Clicker action-request protocol exists yet.",
-    "No guest read-only Cookie Clicker iframe mode exists yet.",
-    "No snapshot revision/merge policy exists for Cookie Clicker saves.",
+    "The snapshot path has not been verified with two independent browser sessions in this pass.",
+    "Guest Cookie clicks, building purchases, upgrades, and minigame actions are not sent as host-validated action requests yet.",
+    "Snapshot sync is not real-time; it intentionally trades immediacy for save safety.",
   ],
   nextSteps: [
-    "Add cookie-clicker-state and cookie-clicker-action-request message types in src/utils/multiplayer/messageSchemas.js.",
-    "Add host-only Cookie Clicker snapshot broadcasting in src/App.jsx using Game.WriteSave(1) at a low frequency.",
-    "Add guest restore/render path that calls Game.LoadSave(snapshot, true) without letting guests directly write host state.",
-    "Decide whether guests may click Cookie Clicker through approved click requests or should only view host snapshots in V1.",
+    "Add controlled Cookie Clicker request messages only after each action type can be safely validated by the host.",
+    "Test long sessions with two independent browser profiles before increasing sync frequency.",
   ],
 });

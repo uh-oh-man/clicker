@@ -1,4 +1,6 @@
-﻿export function EmbeddedClickerModal({ clicker, open, fullscreen, iframeRef, onClose, onEnterFullscreen, onExitFullscreen, onLoad }) {
+﻿import { resolveAsset } from "../../services/assetService.js";
+
+export function EmbeddedClickerModal({ clicker, open, fullscreen, readOnly = false, iframeRef, onClose, onEnterFullscreen, onExitFullscreen, onLoad }) {
   return (
     <div className={`modal-backdrop embedded-backdrop ${open ? "is-open" : "is-hidden"} ${fullscreen ? "is-fullscreen" : ""}`} role="presentation" aria-hidden={!open}>
       <section className="clicker-modal embedded-modal" role="dialog" aria-modal="true" aria-label={`${clicker.name} embedded clicker`} style={{ "--accent": clicker.accent, "--glow": clicker.glow }}>
@@ -14,17 +16,20 @@
         </header>
 
         <p className="iframe-notice">
-          Cookie Clicker is running from this site's local static copy. It stays separate from fruit saves, events, ascension, and multiplayer.
+          {readOnly
+            ? "Shared mode is showing the host's Cookie Clicker snapshot. Guests can view it here, but direct Cookie actions are disabled to protect the host save."
+            : "Cookie Clicker is running from this site's local static copy. It stays separate from fruit saves, events, ascension, and solo fruit mechanics."}
         </p>
 
-        <div className="iframe-frame">
+        <div className={`iframe-frame ${readOnly ? "is-read-only" : ""}`}>
           <iframe
             ref={iframeRef}
             title={clicker.name}
-            src={clicker.externalUrl}
+            src={resolveAsset(clicker.externalUrl)}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
             onLoad={onLoad}
           />
+          {readOnly && <div className="iframe-readonly-shield">Host snapshot view</div>}
         </div>
       </section>
       {fullscreen && (

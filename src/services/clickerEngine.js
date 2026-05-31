@@ -29,7 +29,6 @@ const createEmptyEvents = (now = Date.now()) => ({
   orangeBoosts: {},
   nextSpawnAt: getNextEventSpawnAt(now),
   eggplantIgnoredBonus: 0,
-  log: [],
 });
 
 const numberOr = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
@@ -83,7 +82,6 @@ export const sanitizeState = (input, now = Date.now()) => {
       ...(input.events ?? {}),
       active: Array.isArray(input.events?.active) ? input.events.active : [],
       orangeBoosts: input.events?.orangeBoosts && typeof input.events.orangeBoosts === "object" ? input.events.orangeBoosts : {},
-      log: Array.isArray(input.events?.log) ? input.events.log.slice(-8) : [],
     },
   };
 
@@ -311,11 +309,7 @@ export const activateFruitEvent = (state, eventId, now = Date.now()) => {
       expiresAt: now + stats.durationMs,
       activatedAt: now,
     };
-    addEventLog(next, `${getClickerConfig(event.gameId).shortName} orange boost active.`);
   }
-
-  if (event.type === "lemon") addEventLog(next, "Lemon removed before it could keep taxing the fruit drawer.");
-  if (event.type === "eggplant") addEventLog(next, "Eggplant cleared. Passive systems are back online.");
 
   next.lastUpdated = new Date(now).toISOString();
   next.revision += 1;
@@ -341,12 +335,7 @@ export const ascendFruit = (state, clickerId, now = Date.now()) => {
   });
   next.createdAt = state.createdAt;
   next.revision = state.revision + 1;
-  addEventLog(next, `${getClickerConfig(clickerId).shortName} ascended. Everything resets, but unlocks and ascension power stay.`);
   return { ok: true, state: next };
-};
-
-const addEventLog = (state, message) => {
-  state.events.log = [{ id: createId("log"), message, at: new Date().toISOString() }, ...(state.events.log ?? [])].slice(0, 8);
 };
 
 const cleanupExpiredEvents = (state, now) => {
@@ -358,7 +347,6 @@ const cleanupExpiredEvents = (state, now) => {
     }
     if (event.type === "eggplant") {
       state.events.eggplantIgnoredBonus = roundCurrency((state.events.eggplantIgnoredBonus ?? 0) + 0.01);
-      addEventLog(state, "Ignored eggplant vanished. Future eggplants are slightly more likely.");
     }
   });
   state.events.active = keptEvents;
@@ -380,7 +368,6 @@ const processLemonSteals = (state, now) => {
     }
     if (ticks > 0 && rate > 0) {
       const progress = state.clickers[event.gameId];
-      const before = progress.count;
       const debtFloor = getLemonDebtFloor(progress);
 
       for (let i = 0; i < ticks; i += 1) {
@@ -388,9 +375,6 @@ const processLemonSteals = (state, now) => {
         const steal = progress.count > 0 ? Math.max(progress.count * rate, 1) : Math.max(Math.abs(progress.count) * rate, 1);
         progress.count = roundCurrency(Math.max(debtFloor, progress.count - steal));
       }
-
-      const stolen = roundCurrency(before - progress.count);
-      if (stolen > 0) addEventLog(state, `Lemon stole ${stolen.toLocaleString()} ${getClickerConfig(event.gameId).currency}.`);
     }
     return { ...event, nextStealAt };
   });
@@ -438,13 +422,11 @@ const spawnEvent = (state, clickerId, now, random = Math.random) => {
         activatedAt: now,
         autoClicked: true,
       };
-      addEventLog(state, "Orange Butler auto-clicked an orange with suspicious professionalism.");
       return;
     }
   }
 
   state.events.active.push(event);
-  addEventLog(state, `${type[0].toUpperCase()}${type.slice(1)} appeared in ${getClickerConfig(clickerId).shortName}.`);
 };
 
 export const applyGameTick = (state, options = {}) => {

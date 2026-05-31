@@ -6,6 +6,7 @@
   canInteractWithFruitEvents: "Interact with events",
   canUseLiveChat: "Use live chat",
   canSaveLocalCopy: "Save local copy",
+  canViewSharedCookieClicker: "View shared Cookie Clicker",
 };
 
 export function PermissionEditor({ permissions, onChange }) {

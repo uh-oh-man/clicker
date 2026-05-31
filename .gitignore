@@ -5,3 +5,6 @@ artifacts/
 *.local
 .env
 .env.*
+preview-*.log
+preview-*.err.log
+worker/.wrangler/
